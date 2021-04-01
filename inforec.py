@@ -21,6 +21,8 @@ import uuid
 from typing import Iterable, List, Mapping, Optional, Union
 from uuid import UUID
 
+from helper import delegate
+
 
 DEFAULT_DIR = '.'
 DATABASE_FILE = 'db.json'
@@ -239,38 +241,59 @@ class OrderedEvents:
         self.g = g
 
 
+@delegate('collection', 'add_event', 'is_resolved', 'get_event', 'list', 'has_no_conflict')
+class InfoRecDB:
 
+    @staticmethod
+    def not_exists_or_empty_dir(dir_path):
+        path = pathlib.Path(dir_path)
+        if not path.exists(): return True
+        if not path.is_dir(): return False
+        subs = list(path.glob('*'))
+        return not bool(subs)
 
-def read_data_all(directory='.'):
-    path = pathlib.Path(directory) / DATABASE_FILE
-    with open(path, 'r') as f:
-        dic = json.load(f)
-        events = []
-        for entry in dic[K_EVENTS]:
-            event = Event.deserialise(entry)
-            events.append(event)
-        return EventCollection(events)
+    @staticmethod
+    def read_db(directory):
+        path = pathlib.Path(directory) / DATABASE_FILE
+        with open(path, 'r') as f:
+            dic = json.load(f)
+            events = []
+            for entry in dic[K_EVENTS]:
+                event = Event.deserialise(entry)
+                events.append(event)
+            return EventCollection(events)
 
+    @classmethod
+    def init(cls, base_dir):
+        if not cls.not_exists_or_empty_dir(base_dir):
+            error(f'Path `{base_dir}` is not an empty directory or is a file')
+        path = pathlib.Path(base_dir)
+        if not path.exists():
+            path.mkdir()
+        collection = EventCollection()
+        db = cls(base_dir, collection)
+        db.write()
 
-def write_data_all(collection: EventCollection, directory='.'):
-    path = pathlib.Path(directory) / DATABASE_FILE
-    dic = {}
-    dic[K_EVENTS] = [Event.serialise(event) for event in collection.events.values()]
-    with open(path, 'w') as f:
-        json.dump(dic, f)
+    @classmethod
+    def open(cls, base_dir):
+        collection = cls.read_db(base_dir)
+        return cls(base_dir, collection)
+
+    def __init__(self, directory, collection):
+        self._dir = directory
+        self.collection = collection
+
+    def write(self):
+        path = pathlib.Path(self._dir) / DATABASE_FILE
+        dic = {}
+        dic[K_EVENTS] = [Event.serialise(event) for event in self.collection.events.values()]
+        with open(path, 'w') as f:
+            json.dump(dic, f)
 
 
 def error(msg: str) -> None:
     print(msg, file=sys.stderr)
     sys.exit(2)
-
-
-def not_exists_or_empty_dir(dir_path):
-    path = pathlib.Path(dir_path)
-    if not path.exists(): return True
-    if not path.is_dir(): return False
-    subs = list(path.glob('*'))
-    return not bool(subs)
 
 
 def main():
@@ -296,17 +319,11 @@ def main():
 
     base_dir = args.directory
     if args.action == 'init':
-        if not not_exists_or_empty_dir(base_dir):
-            error(f'Path `{base_dir}` is not an empty directory or is a file')
-        path = pathlib.Path(base_dir)
-        if not path.exists():
-            path.mkdir()
-        collection = EventCollection()
-        write_data_all(collection, base_dir)
+        InfoRecDB.init(base_dir)
     elif args.action == 'list':
-        collection = read_data_all(base_dir)
-        for eid in collection.list():
-            event = collection.get_event(eid)
+        db = InfoRecDB.open(base_dir)
+        for eid in db.list():
+            event = db.get_event(eid)
             print(f"{str(eid)} {event.title}")
     elif args.action == 'add':
         title = args.title
@@ -314,7 +331,7 @@ def main():
         before = args.before
         after = args.after
         same = args.same
-        collection = read_data_all(base_dir)
+        db = InfoRecDB.open(base_dir)
         if before and after:
             event = Event.between(before, after, title, desc)
         elif before:
@@ -325,13 +342,11 @@ def main():
             event = Event.same(same, title, desc)
         else:
             event = Event.single(title, desc)
-        collection.add_event(event)
-        assert collection.is_resolved()
-        write_data_all(collection, base_dir)
+        db.add_event(event)
+        assert db.is_resolved()
+        db.write()
     else:
         parser.print_help()
-
-
 
 
 if __name__ == "__main__":
