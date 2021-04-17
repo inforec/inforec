@@ -187,7 +187,7 @@ class EventCollection:
 
     def has_no_conflict(self) -> bool:
         try:
-            ordered_events = OrderedEvents(self.events)
+            ordered_events = OrderedEvents(self.events.values())
         except networkx.NetworkXUnfeasible:
             return False
         return True
@@ -198,7 +198,7 @@ ForeverFuture = RelTimeMarker()
 
 
 class OrderedEvents:
-    def __init__(self, events: List[Event]):
+    def __init__(self, events: Iterable[Event]):
         g = networkx.DiGraph()
 
         def current_root(node):
