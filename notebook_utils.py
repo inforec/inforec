@@ -18,6 +18,9 @@ import utils
 from storage import InfoRecDB
 
 
-def dump_events(info_rec_db: 'InfoRecDB'):
-    event_table = utils.tabularize_events(info_rec_db)
-    return pd.DataFrame(event_table, columns=["ID", "Title"])
+def dump_events(db: 'InfoRecDB'):
+    event_table = []
+    for eid in db.list():
+        event = db.get_event(eid)
+        event_table.append([str(eid), event.title, event.timespec])
+    return pd.DataFrame(event_table, columns=["ID", "Title", "TimeSpec"])
