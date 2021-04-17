@@ -173,7 +173,10 @@ class EventCollection:
                 if tid not in self._dangling_refs: self._dangling_refs[tid] = []
                 self._dangling_refs[tid].append(eid)
 
-    def is_resolved(self) -> bool:
+    def is_self_contained(self) -> bool:
+        '''
+        Test if the collection is self-contained, which means every event points to a valid event in the collection.
+        '''
         return not bool(self._dangling_refs)
 
     def get_event(self, id: Union[UUID, str]) -> Event:
@@ -241,7 +244,7 @@ class OrderedEvents:
         self.g = g
 
 
-@delegate('collection', 'add_event', 'is_resolved', 'get_event', 'list', 'has_no_conflict')
+@delegate('collection', 'add_event', 'is_self_contained', 'get_event', 'list', 'has_no_conflict')
 class InfoRecDB:
 
     @staticmethod
@@ -291,6 +294,14 @@ class InfoRecDB:
             json.dump(dic, f)
 
 
+def tabularize_events(db):
+    event_table = []
+    for eid in db.list():
+        event = db.get_event(eid)
+        event_table.append([str(eid), event.title])
+    return event_table
+
+
 def error(msg: str) -> None:
     print(msg, file=sys.stderr)
     sys.exit(2)
@@ -322,9 +333,8 @@ def main():
         InfoRecDB.init(base_dir)
     elif args.action == 'list':
         db = InfoRecDB.open(base_dir)
-        for eid in db.list():
-            event = db.get_event(eid)
-            print(f"{str(eid)} {event.title}")
+        for einfo in tabularize_events(db):
+            print(f"{einfo[0]} {einfo[1]}")
     elif args.action == 'add':
         title = args.title
         desc = args.desc
@@ -343,7 +353,7 @@ def main():
         else:
             event = Event.single(title, desc)
         db.add_event(event)
-        assert db.is_resolved()
+        assert db.is_self_contained()
         db.write()
     else:
         parser.print_help()
