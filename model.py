@@ -30,7 +30,7 @@ class RelTimeSpec:
     A class representing a specification of relative time, which should be before, after, or is at the same time as some `RelTimeMarker`.
     '''
 
-    def __init__(self, befores: Optional[List[RelTimeMarker]]=None, afters: Optional[List[RelTimeMarker]]=None, sames: Optional[List[RelTimeMarker]]=None):
+    def __init__(self, befores: Optional[List[UUID]]=None, afters: Optional[List[UUID]]=None, sames: Optional[List[UUID]]=None):
         '''
         None means this field is unknown, while an empty list means this field is known to be empty
         '''

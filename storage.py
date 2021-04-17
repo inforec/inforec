@@ -49,18 +49,18 @@ class EventCollection:
         if eid in self._dangling_refs:
             del self._dangling_refs[eid]
         if event.timespec:
-            if event.timespec.before is not None:
-                for tid in event.timespec.before:
+            if event.timespec.befores is not None:
+                for tid in event.timespec.befores:
                     if tid not in self._dangling_refs: self._dangling_refs[tid] = []
                     self._dangling_refs[tid].append(eid)
-            if event.timespec.after is not None:
-                for tid in event.timespec.after:
+            if event.timespec.afters is not None:
+                for tid in event.timespec.afters:
                     if tid not in self._dangling_refs: self._dangling_refs[tid] = []
                     self._dangling_refs[tid].append(eid)
-            if event.timespec.same is not None:
-                tid = event.timespec.same.id
-                if tid not in self._dangling_refs: self._dangling_refs[tid] = []
-                self._dangling_refs[tid].append(eid)
+            if event.timespec.sames is not None:
+                for tid in event.timespec.sames:
+                    if tid not in self._dangling_refs: self._dangling_refs[tid] = []
+                    self._dangling_refs[tid].append(eid)
 
     def is_self_contained(self) -> bool:
         '''
@@ -78,7 +78,7 @@ class EventCollection:
 
     def has_no_conflict(self) -> bool:
         try:
-            ordered_events = OrderedEvents(self.events.values())
+            ordered_events = OrderedEvents(self)
         except networkx.NetworkXUnfeasible:
             return False
         return True
@@ -89,18 +89,19 @@ ForeverFuture = RelTimeMarker()
 
 
 class OrderedEvents:
-    def __init__(self, events: Iterable[Event]):
+    def __init__(self, collection: EventCollection):
         g = networkx.DiGraph()
 
         def current_root(node):
             if id_merging[node] == node: return node
             return current_root(id_merging[node])
+        events = collection.events.values()
         id_merging = {}  # k:v <==> event ID : the event ID to a parent node of its group
         for event in events:
             id_merging[event.id] = event.id
         for event in events:
             if event.timespec:
-                sames = event.timespec.same
+                sames = event.timespec.sames
                 if sames:
                     merged_id = None
                     for same in sames:
@@ -119,12 +120,12 @@ class OrderedEvents:
         for event in events:
             if event.timespec:
                 node_id_1 = str(id_merged[event.id])
-                afters = event.timespec.after
+                afters = event.timespec.afters
                 if afters:
                     for after in afters:
                         node_id_2 = str(id_merged[after])
                         g.add_edge(node_id_2, node_id_1)
-                befores = event.timespec.before
+                befores = event.timespec.befores
                 if befores:
                     for before in befores:
                         node_id_2 = str(id_merged[before])

@@ -29,19 +29,19 @@ K_DESC = 'desc'
 
 def serialise_reltimespec(obj) -> dict:
     ret = {}
-    if obj.before:
-        ret[K_BEFORE] = obj.before
-    if obj.after:
-        ret[K_AFTER] = obj.after
-    if obj.same:
-        ret[K_SAME] = obj.same
+    if obj.befores:
+        ret[K_BEFORE] = obj.befores
+    if obj.afters:
+        ret[K_AFTER] = obj.afters
+    if obj.sames:
+        ret[K_SAME] = obj.sames
     return ret
 
 def deserialise_reltimespec(dic) -> 'RelTimeSpec':
-    before = dic.get(K_BEFORE, None)
-    after = dic.get(K_AFTER, None)
-    same = dic.get(K_SAME, None)
-    return RelTimeSpec(before=before, after=after, same=same)
+    befores = dic.get(K_BEFORE, None)
+    afters = dic.get(K_AFTER, None)
+    sames = dic.get(K_SAME, None)
+    return RelTimeSpec(befores=befores, afters=afters, sames=sames)
     # if before is not None or after is not None:
     #     assert K_SAME not in dic
     #     return RelTimeSpec(before=before, after=after)
@@ -49,13 +49,12 @@ def deserialise_reltimespec(dic) -> 'RelTimeSpec':
     #     return RelTimeSpec(same=same)
 
 
-
 def deserialise_event(dic) -> 'Event':
     id = UUID(dic[K_ID])
     title = dic[K_TITLE]
     desc = dic.get(K_DESC, None)
     timespec_se = dic.get(K_TIMESPEC, None)
-    timespec = RelTimeSpec.deserialise(timespec_se) if timespec_se else None
+    timespec = deserialise_reltimespec(timespec_se) if timespec_se else None
     return Event(id=id, title=title, desc=desc, timespec=timespec)
 
 def serialise_event(obj) -> dict:
@@ -66,6 +65,6 @@ def serialise_event(obj) -> dict:
     if obj.desc:
         ret[K_DESC] = obj.desc
     if obj.timespec:
-        ret[K_TIMESPEC] = obj.timespec
+        ret[K_TIMESPEC] = serialise_reltimespec(obj.timespec)
     return ret
 
