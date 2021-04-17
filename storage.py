@@ -19,127 +19,18 @@ import uuid
 from typing import Iterable, List, Mapping, Optional, Union
 from uuid import UUID
 
+import sede
+
 from helper import delegate
+from model import (
+        Event,
+        RelTimeMarker,
+        )
 
 
 DATABASE_FILE = 'db.json'
 
-
 K_EVENTS = 'events'
-K_BEFORE = 'before'
-K_AFTER = 'after'
-K_SAME = 'same'
-K_TIMESPEC = 'timespec'
-K_ID = 'id'
-K_TITLE = 'title'
-K_DESC = 'desc'
-
-
-class RelTimeMarker:
-    '''
-    A class representing a relative time, which may be relative to another event or absolute to clock.
-    Maybe using subclasses is neater.
-    '''
-    pass
-
-
-class RelTimeSpec:
-    '''
-    A class representing a specification of relative time, which should be before, after, or is at the same time as some `RelTimeMarker`.
-    '''
-    @staticmethod
-    def serialise(obj) -> dict:
-        ret = {}
-        if obj.before:
-            ret[K_BEFORE] = obj.before
-        if obj.after:
-            ret[K_AFTER] = obj.after
-        if obj.same:
-            ret[K_SAME] = obj.same
-        return ret
-
-    @staticmethod
-    def deserialise(dic) -> 'RelTimeSpec':
-        before = dic.get(K_BEFORE, None)
-        after = dic.get(K_AFTER, None)
-        same = dic.get(K_SAME, None)
-        return RelTimeSpec(before=before, after=after, same=same)
-        # if before is not None or after is not None:
-        #     assert K_SAME not in dic
-        #     return RelTimeSpec(before=before, after=after)
-        # else:
-        #     return RelTimeSpec(same=same)
-
-
-    def __init__(self, before: Optional[List[RelTimeMarker]]=None, after: Optional[List[RelTimeMarker]]=None, same: Optional[List[RelTimeMarker]]=None):
-        '''
-        None means this field is unknown, while an empty list means this field is known to be empty
-        '''
-        # assert bool(before or after) != bool(absolute), 'An event should not be either relative or absolute. Maybe you want to add the relative information to the other events.'
-        self.before = before
-        self.after = after
-        self.same = same
-
-
-class Event(RelTimeMarker):
-
-    @staticmethod
-    def deserialise(dic) -> 'Event':
-        id = UUID(dic[K_ID])
-        title = dic[K_TITLE]
-        desc = dic.get(K_DESC, None)
-        timespec_se = dic.get(K_TIMESPEC, None)
-        timespec = RelTimeSpec.deserialise(timespec_se) if timespec_se else None
-        return Event(id=id, title=title, desc=desc, timespec=timespec)
-
-    @staticmethod
-    def serialise(obj) -> dict:
-        ret = {
-                K_ID: str(obj.id),
-                K_TITLE: obj.title,
-                }
-        if obj.desc:
-            ret[K_DESC] = obj.desc
-        if obj.timespec:
-            ret[K_TIMESPEC] = obj.timespec
-        return ret
-
-
-    @classmethod
-    def between(cls, before, after, title, desc=None):
-        id = uuid.uuid4()
-        ts = RelTimeSpec(before=before, after=after)
-        return cls(id=id, title=title, desc=desc, timespec=ts)
-
-    @classmethod
-    def before(cls, before, title, desc=None):
-        id = uuid.uuid4()
-        ts = RelTimeSpec(before=before)
-        return cls(id=id, title=title, desc=desc, timespec=ts)
-
-    @classmethod
-    def after(cls, after, title, desc=None):
-        id = uuid.uuid4()
-        ts = RelTimeSpec(after=after)
-        return cls(id=id, title=title, desc=desc, timespec=ts)
-
-    @classmethod
-    def same(cls, same, title, desc=None):
-        id = uuid.uuid4()
-        ts = RelTimeSpec(same=same)
-        return cls(id=id, title=title, desc=desc, timespec=ts)
-
-    @classmethod
-    def single(cls, title, desc=None):
-        id = uuid.uuid4()
-        return cls(id=id, title=title, desc=desc)
-
-
-    def __init__(self, id, title, desc=None, timespec=None):
-        self.id = id
-        self.title = title
-        self.desc = desc
-        self.timespec = timespec
 
 
 class EventCollection:
@@ -260,7 +151,7 @@ class InfoRecDB:
             dic = json.load(f)
             events = []
             for entry in dic[K_EVENTS]:
-                event = Event.deserialise(entry)
+                event = sede.deserialise_event(entry)
                 events.append(event)
             return EventCollection(events)
 
@@ -287,6 +178,6 @@ class InfoRecDB:
     def write(self):
         path = pathlib.Path(self._dir) / DATABASE_FILE
         dic = {}
-        dic[K_EVENTS] = [Event.serialise(event) for event in self.collection.events.values()]
+        dic[K_EVENTS] = [sede.serialise_event(event) for event in self.collection.events.values()]
         with open(path, 'w') as f:
             json.dump(dic, f)
