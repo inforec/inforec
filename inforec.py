@@ -14,9 +14,8 @@
 import argparse
 import sys
 
-from storage import (
-        InfoRecDB
-        )
+from model import EventBuilder
+from storage import InfoRecDB
 from utils import tabularize_events
 
 
@@ -63,16 +62,7 @@ def main():
         after = args.after
         same = args.same
         db = InfoRecDB.open(base_dir)
-        if before and after:
-            event = Event.between(before, after, title, desc)
-        elif before:
-            event = Event.before(before, title, desc)
-        elif after:
-            event = Event.after(after, title, desc)
-        elif same:
-            event = Event.same(same, title, desc)
-        else:
-            event = Event.single(title, desc)
+        event = EventBuilder(title).desc(desc).before(before).after(after).same(same).build()
         db.add_event(event)
         assert db.is_self_contained()
         db.write()

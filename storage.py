@@ -12,7 +12,7 @@ It may be split in the future.
 '''
 
 import json
-import networkx
+import networkx as nx
 import pathlib
 import uuid
 
@@ -78,10 +78,14 @@ class EventCollection:
 
     def has_no_conflict(self) -> bool:
         try:
-            ordered_events = OrderedEvents(self)
-        except networkx.NetworkXUnfeasible:
+            return not bool(self.conflicts())
+        except nx.NetworkXUnfeasible:
             return False
         return True
+
+    def conflicts(self):
+        ordered_events = OrderedEvents(self)
+        return ordered_events.cycles()
 
 
 ForeverPast = RelTimeMarker()
@@ -90,7 +94,7 @@ ForeverFuture = RelTimeMarker()
 
 class OrderedEvents:
     def __init__(self, collection: EventCollection):
-        g = networkx.DiGraph()
+        g = nx.DiGraph()
 
         def current_root(node):
             if id_merging[node] == node: return node
@@ -133,8 +137,12 @@ class OrderedEvents:
 
         self.g = g
 
+    def cycles(self):
+        return list(nx.simple_cycles(self.g))
 
-@delegate('collection', 'add_event', 'is_self_contained', 'get_event', 'list', 'has_no_conflict')
+
+
+@delegate('collection', 'add_event', 'is_self_contained', 'get_event', 'list', 'has_no_conflict', 'conflicts')
 class InfoRecDB:
 
     @staticmethod

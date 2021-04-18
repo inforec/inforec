@@ -51,38 +51,59 @@ class RelTimeSpec:
 
 class Event(RelTimeMarker):
 
-    @classmethod
-    def between(cls, before, after, title, desc=None):
-        id = uuid.uuid4()
-        ts = RelTimeSpec(before=before, after=after)
-        return cls(id=id, title=title, desc=desc, timespec=ts)
-
-    @classmethod
-    def before(cls, before, title, desc=None):
-        id = uuid.uuid4()
-        ts = RelTimeSpec(before=before)
-        return cls(id=id, title=title, desc=desc, timespec=ts)
-
-    @classmethod
-    def after(cls, after, title, desc=None):
-        id = uuid.uuid4()
-        ts = RelTimeSpec(after=after)
-        return cls(id=id, title=title, desc=desc, timespec=ts)
-
-    @classmethod
-    def same(cls, same, title, desc=None):
-        id = uuid.uuid4()
-        ts = RelTimeSpec(same=same)
-        return cls(id=id, title=title, desc=desc, timespec=ts)
-
-    @classmethod
-    def single(cls, title, desc=None):
-        id = uuid.uuid4()
-        return cls(id=id, title=title, desc=desc)
-
-
-    def __init__(self, id, title, desc=None, timespec=None):
+    def __init__(self, id, title, timespec, desc=None):
         self.id = id
         self.title = title
         self.desc = desc
         self.timespec = timespec
+
+
+class EventBuilder:
+    def __init__(self, title):
+        self._title = title
+        self._id = None
+        self._desc = None
+        self._before = None
+        self._after = None
+        self._same = None
+
+    def id(self, id):
+        self._id = id
+        return self
+
+    def desc(self, desc):
+        self._desc = desc
+        return self
+
+    def _add_rel(self, spec_target, other):
+        if isinstance(other, Event):
+            spec_target.append(other.id)
+        elif isinstance(other, UUID):
+            spec_target.append(other)
+        else:
+            spec_target.append(UUID(other))
+
+    def before(self, other):
+        if self._before is None:
+            self._before = []
+        self._add_rel(self._before, other)
+        return self
+
+    def after(self, other):
+        if self._after is None:
+            self._after = []
+        self._add_rel(self._after, other)
+        return self
+
+    def same(self, other):
+        if self._same is None:
+            self._same = []
+        self._add_rel(self._same, other)
+        return self
+
+    def build(self) -> Event:
+        before = []
+        timespec = RelTimeSpec(self._before, self._after, self._same)
+        eid = self._id if self._id else genid()
+        return Event(id=eid, title=self._title, desc=self._desc, timespec=timespec)
+
