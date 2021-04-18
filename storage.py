@@ -21,8 +21,13 @@ from uuid import UUID
 
 import sede
 
+from exception import (
+        IllegalStateError,
+        )
 from helper import delegate
 from model import (
+        AbsoluteDateTime,
+        Date,
         Event,
         RelTimeMarker,
         )
@@ -30,37 +35,53 @@ from model import (
 
 DATABASE_FILE = 'db.json'
 
-K_EVENTS = 'events'
+K_COLLECTION = 'collection'
+K_TYPE = 'type'
+K_DATA = 'data'
+T_EVENT = 'event'
+T_ABSOLUTEDATETIME = 'absolute_date_time'
+T_DATE = 'date'
+M_T_DES = {
+        T_ABSOLUTEDATETIME: sede.deserialize_absolutedatetime,
+        T_DATE: sede.deserialize_date,
+        T_EVENT: sede.deserialise_event,
+        }
+M_T_SER = {
+        AbsoluteDateTime: (sede.serialise_event, T_ABSOLUTEDATETIME),
+        Date: (sede.serialize_date, T_DATE),
+        Event: (sede.serialise_event, T_EVENT),
+        }
 
 
-class EventCollection:
+class Collection:
 
-    def __init__(self, initial_events: List[Event]=[]):
-        self.events = {}
+    def __init__(self, initial_rel_markers: List[RelTimeMarker]=[]):
+        self.collection = {}
         self._dangling_refs = {}
-        for event in initial_events:
-            self.add_event(event)
+        for rel in initial_rel_markers:
+            self.add_item(rel)
 
-    def add_event(self, event: Event):
-        eid = event.id
-        if eid in self.events:
-            raise RuntimeError('The event you are trying to add has duplicated id with an existing entry.')
-        self.events[eid] = event
-        if eid in self._dangling_refs:
-            del self._dangling_refs[eid]
-        if event.timespec:
-            if event.timespec.befores is not None:
-                for tid in event.timespec.befores:
-                    if tid not in self._dangling_refs: self._dangling_refs[tid] = []
-                    self._dangling_refs[tid].append(eid)
-            if event.timespec.afters is not None:
-                for tid in event.timespec.afters:
-                    if tid not in self._dangling_refs: self._dangling_refs[tid] = []
-                    self._dangling_refs[tid].append(eid)
-            if event.timespec.sames is not None:
-                for tid in event.timespec.sames:
-                    if tid not in self._dangling_refs: self._dangling_refs[tid] = []
-                    self._dangling_refs[tid].append(eid)
+    def add_item(self, item: RelTimeMarker):
+        iid = item.id
+        if iid in self.collection:
+            raise IllegalStateError('The item you are trying to add has duplicated id with an existing entry.')
+        self.collection[iid] = item
+        if isinstance(item, Event):
+            if iid in self._dangling_refs:
+                del self._dangling_refs[iid]
+            if item.timespec:
+                if item.timespec.befores is not None:
+                    for tid in item.timespec.befores:
+                        if tid not in self._dangling_refs: self._dangling_refs[tid] = []
+                        self._dangling_refs[tid].append(iid)
+                if item.timespec.afters is not None:
+                    for tid in item.timespec.afters:
+                        if tid not in self._dangling_refs: self._dangling_refs[tid] = []
+                        self._dangling_refs[tid].append(iid)
+                if item.timespec.sames is not None:
+                    for tid in item.timespec.sames:
+                        if tid not in self._dangling_refs: self._dangling_refs[tid] = []
+                        self._dangling_refs[tid].append(iid)
 
     def is_self_contained(self) -> bool:
         '''
@@ -68,13 +89,19 @@ class EventCollection:
         '''
         return not bool(self._dangling_refs)
 
-    def get_event(self, id: Union[UUID, str]) -> Event:
+    def get_item(self, id: Union[UUID, str]) -> RelTimeMarker:
         if not isinstance(id, UUID):
             id = UUID(id)
-        return self.events[id]
+        return self.collection[id]
+
+    def get_event(self, id: Union[UUID, str]) -> Event:
+        item = self.get_item(id)
+        if not isinstance(item, Event):
+            raise RuntimeError("The requested item {} is not an Event, but a {}".format(id, type(item)))
+        return item
 
     def list(self) -> Iterable[UUID]:
-        return self.events.keys()
+        return self.collection.keys()
 
     def has_no_conflict(self) -> bool:
         try:
@@ -84,28 +111,28 @@ class EventCollection:
         return True
 
     def conflicts(self):
-        ordered_events = OrderedEvents(self)
+        ordered_events = OrderedMarkers(self)
         return ordered_events.cycles()
 
 
-ForeverPast = RelTimeMarker()
-ForeverFuture = RelTimeMarker()
+# ForeverPast = RelTimeMarker()
+# ForeverFuture = RelTimeMarker()
 
 
-class OrderedEvents:
-    def __init__(self, collection: EventCollection):
+class OrderedMarkers:
+    def __init__(self, collection: Collection):
         g = nx.DiGraph()
 
         def current_root(node):
             if id_merging[node] == node: return node
             return current_root(id_merging[node])
-        events = collection.events.values()
+        coll = collection.collection.values()
         id_merging = {}  # k:v <==> event ID : the event ID to a parent node of its group
-        for event in events:
-            id_merging[event.id] = event.id
-        for event in events:
-            if event.timespec:
-                sames = event.timespec.sames
+        for marker in coll:
+            id_merging[marker.id] = marker.id
+        for marker in coll:
+            if isinstance(marker, Event):
+                sames = marker.timespec.sames
                 if sames:
                     merged_id = None
                     for same in sames:
@@ -116,20 +143,20 @@ class OrderedEvents:
                         for same in sames:
                             root = current_root(same)
                             id_merging[same] = merged_id
-                        id_merging[event.id] = merged_id
+                        id_merging[marker.id] = merged_id
         id_merged = {}
-        for event in events:
-            id_merged[event.id] = current_root(event.id)
+        for marker in coll:
+            id_merged[marker.id] = current_root(marker.id)
 
-        for event in events:
-            if event.timespec:
-                node_id_1 = str(id_merged[event.id])
-                afters = event.timespec.afters
+        for marker in coll:
+            if isinstance(marker, Event):
+                node_id_1 = str(id_merged[marker.id])
+                afters = marker.timespec.afters
                 if afters:
                     for after in afters:
                         node_id_2 = str(id_merged[after])
                         g.add_edge(node_id_2, node_id_1)
-                befores = event.timespec.befores
+                befores = marker.timespec.befores
                 if befores:
                     for before in befores:
                         node_id_2 = str(id_merged[before])
@@ -142,7 +169,7 @@ class OrderedEvents:
 
 
 
-@delegate('collection', 'add_event', 'is_self_contained', 'get_event', 'list', 'has_no_conflict', 'conflicts')
+@delegate('collection', 'add_item', 'is_self_contained', 'get_event', 'get_item', 'list', 'has_no_conflict', 'conflicts')
 class InfoRecDB:
 
     @staticmethod
@@ -158,11 +185,13 @@ class InfoRecDB:
         path = pathlib.Path(directory) / DATABASE_FILE
         with open(path, 'r') as f:
             dic = json.load(f)
-            events = []
-            for entry in dic[K_EVENTS]:
-                event = sede.deserialise_event(entry)
-                events.append(event)
-            return EventCollection(events)
+            coll = []
+            for entry in dic[K_COLLECTION]:
+                t = entry[K_TYPE]
+                assert t in M_T_DES, "DB with unexpected schema: Unknown type {} in collection".format(t)
+                marker = M_T_DES[t](entry[K_DATA])
+                coll.append(marker)
+            return Collection(coll)
 
     @classmethod
     def init(cls, base_dir):
@@ -171,7 +200,7 @@ class InfoRecDB:
         path = pathlib.Path(base_dir)
         if not path.exists():
             path.mkdir()
-        collection = EventCollection()
+        collection = Collection()
         db = cls(base_dir, collection)
         db.write()
 
@@ -187,6 +216,15 @@ class InfoRecDB:
     def write(self):
         path = pathlib.Path(self._dir) / DATABASE_FILE
         dic = {}
-        dic[K_EVENTS] = [sede.serialise_event(event) for event in self.collection.events.values()]
+        coll = []
+        for marker in self.collection.collection.values():
+            t = type(marker)
+            assert t in M_T_SER, "Collection contains unknown type {}".format(t)
+            entry = {
+                    K_TYPE: M_T_SER[t][1],
+                    K_DATA: M_T_SER[t][0](marker),
+                    }
+            coll.append(entry)
+        dic[K_COLLECTION] = coll
         with open(path, 'w') as f:
             json.dump(dic, f)

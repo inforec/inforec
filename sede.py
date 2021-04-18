@@ -10,9 +10,13 @@
 SErialize and DEserialize
 '''
 
+import datetime
+
 from uuid import UUID
 
 from model import (
+        AbsoluteDateTime,
+        Date,
         Event,
         RelTimeSpec,
         )
@@ -21,10 +25,17 @@ from model import (
 K_BEFORE = 'before'
 K_AFTER = 'after'
 K_SAME = 'same'
+
 K_TIMESPEC = 'timespec'
 K_ID = 'id'
 K_TITLE = 'title'
 K_DESC = 'desc'
+K_DATETIME = 'datetime'
+K_DATE = 'date'
+
+
+DATETIME_REPR = r'%Y-%m-%dT%H:%M:%S[%z]'
+DATE_REPR = r'%Y-%m-%d[%z]'
 
 
 def serialise_reltimespec(obj) -> dict:
@@ -37,7 +48,7 @@ def serialise_reltimespec(obj) -> dict:
         ret[K_SAME] = [str(item) for item in obj.sames]
     return ret
 
-def deserialise_reltimespec(dic) -> 'RelTimeSpec':
+def deserialise_reltimespec(dic) -> RelTimeSpec:
     if dic is None:  # Compatibility. Will be removed
         return RelTimeSpec()
     def uuidfy(items):
@@ -53,7 +64,7 @@ def deserialise_reltimespec(dic) -> 'RelTimeSpec':
     #     return RelTimeSpec(same=same)
 
 
-def deserialise_event(dic) -> 'Event':
+def deserialise_event(dic) -> Event:
     id = UUID(dic[K_ID])
     title = dic[K_TITLE]
     desc = dic.get(K_DESC, None)
@@ -72,3 +83,28 @@ def serialise_event(obj) -> dict:
         ret[K_TIMESPEC] = serialise_reltimespec(obj.timespec)
     return ret
 
+
+def deserialize_absolutedatetime(dic) -> AbsoluteDateTime:
+    id = UUID(dic[K_ID])
+    time = datetime.strptime(dic[K_DATETIME], DATETIME_REPR)
+    return AbsoluteDateTime(id, time)
+
+def serialize_absolutedatetime(obj: AbsoluteDateTime) -> dict:
+    ret = {
+            K_ID: str(obj.id),
+            K_DATETIME: obj.abstime.strftime(DATETIME_REPR),
+            }
+    return ret
+
+
+def deserialize_date(dic) -> Date:
+    id = UUID(dic[K_ID])
+    date = datetime.strptime(dic[K_DATE], DATE_REPR)
+    return Date(id, time)
+
+def serialize_date(obj: Date) -> dict:
+    ret = {
+            K_ID: str(obj.id),
+            K_DATE: obj.date.strftime(DATE_REPR),
+            }
+    return ret

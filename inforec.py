@@ -63,7 +63,7 @@ def main():
         same = args.same
         db = InfoRecDB.open(base_dir)
         event = EventBuilder(title).desc(desc).before(before).after(after).same(same).build()
-        db.add_event(event)
+        db.add_item(event)
         assert db.is_self_contained()
         db.write()
     else:

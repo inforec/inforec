@@ -10,6 +10,12 @@
 This file contains the data model.
 '''
 
+import datetime
+
+from enum import Enum
+from exception import (
+        IllegalStateError,
+        )
 from typing import Iterable, List, Mapping, Optional, Union
 from uuid import (
         uuid4 as genid,
@@ -17,12 +23,20 @@ from uuid import (
         )
 
 
+class TimeRelativity(Enum):
+    BEFORE = 1  # If the RelTimeMarker is strictly before the other.
+    SAME = 10  # If the RelTimeMarker is the same as the other. This is a rare case, and will only happen with asserted sames and absolute time. Most often a PARALLEL is expected.
+    PARALLEL = 11  # If the order can't be determined. Can be considered as unknown.
+    AFTER = 20  # If the RelTimeMarker is strictly after the other.
+
+
 class RelTimeMarker:
     '''
     A class representing a relative time, which may be relative to another event or absolute to clock.
     Maybe using subclasses is neater.
     '''
-    pass
+    def __init__(self, id):
+        self.id = id
 
 
 class RelTimeSpec:
@@ -49,10 +63,36 @@ class RelTimeSpec:
         self.sames.append(other)
 
 
+class AbsoluteDateTime(RelTimeMarker):
+
+    def __init__(self, id, abstime: datetime.datetime):
+        super().__init__(id)
+        self.abstime = time
+
+    def compare(self, o: 'RelTimeMarker') -> TimeRelativity:
+        if isinstance(o, AbsoluteDateTime):
+            if self.abstime < o.abstime:
+                return TimeRelativity.BEFORE
+            elif self.abstime == o.abstime:
+                return TimeRelativity.SAME
+            elif self.abstime > o.abstime:
+                return TimeRelativity.AFTER
+            else:
+                raise IllegalStateError('AbsoluteDateTime comparison exausted but not found')
+        return NotImplemented
+
+
+class Date(RelTimeMarker):
+
+    def __init__(self, id, date: datetime.date):
+        super().__init__(id)
+        self.date = date
+
+
 class Event(RelTimeMarker):
 
     def __init__(self, id, title, timespec, desc=None):
-        self.id = id
+        super().__init__(id)
         self.title = title
         self.desc = desc
         self.timespec = timespec
