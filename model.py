@@ -25,9 +25,11 @@ from uuid import (
 
 class TimeRelativity(Enum):
     BEFORE = 1  # If the RelTimeMarker is strictly before the other.
-    SAME = 10  # If the RelTimeMarker is the same as the other. This is a rare case, and will only happen with asserted sames and absolute time. Most often a PARALLEL is expected.
+    SAME = 10  # If the RelTimeMarker is the same as the other. This is a rare case, and will only happen with asserted sames. Most often a PARALLEL is expected.
     PARALLEL = 11  # If the order can't be determined. Can be considered as unknown.
     AFTER = 20  # If the RelTimeMarker is strictly after the other.
+    GENERALIZED = 30  # If the RelTimeMarker is more general than the other (e.g. a date is more generalized than a datetime on that day)
+    SPECIALIZED = 40  # Reverse of GENERALIZED: If the RelTimeMarker is more specific than the other ()
 
 
 class RelTimeMarker:
@@ -37,6 +39,12 @@ class RelTimeMarker:
     '''
     def __init__(self, id):
         self.id = id
+
+
+class RelTimeSpecImplicit:
+
+    def compare(self, o: 'RelTimeSpecImplicit') -> TimeRelativity:
+        return NotImplemented
 
 
 class RelTimeSpec:
@@ -63,30 +71,62 @@ class RelTimeSpec:
         self.sames.append(other)
 
 
-class AbsoluteDateTime(RelTimeMarker):
+class AbsoluteDateTime(RelTimeMarker, RelTimeSpecImplicit):
 
     def __init__(self, id, abstime: datetime.datetime):
         super().__init__(id)
         self.abstime = time
 
-    def compare(self, o: 'RelTimeMarker') -> TimeRelativity:
+    def compare(self, o: RelTimeSpecImplicit) -> TimeRelativity:
         if isinstance(o, AbsoluteDateTime):
             if self.abstime < o.abstime:
                 return TimeRelativity.BEFORE
             elif self.abstime == o.abstime:
-                return TimeRelativity.SAME
+                return TimeRelativity.PARALLEL
             elif self.abstime > o.abstime:
+                return TimeRelativity.AFTER
+            else:
+                raise IllegalStateError('AbsoluteDateTime comparison exausted but not found')
+        elif isinstance(o, Date):
+            date = self.abstime.date()
+            if date < o.date:
+                return TimeRelativity.BEFORE
+            elif date == o.date:
+                return TimeRelativity.SPECIALIZED
+            elif date > o.date:
                 return TimeRelativity.AFTER
             else:
                 raise IllegalStateError('AbsoluteDateTime comparison exausted but not found')
         return NotImplemented
 
 
-class Date(RelTimeMarker):
+class Date(RelTimeMarker, RelTimeSpecImplicit):
 
     def __init__(self, id, date: datetime.date):
         super().__init__(id)
         self.date = date
+
+    def compare(self, o: RelTimeSpecImplicit) -> TimeRelativity:
+        if isinstance(o, AbsoluteDateTime):
+            o_date = o.abstime.date()
+            if self.date < o_date:
+                return TimeRelativity.BEFORE
+            elif self.date == o_date:
+                return TimeRelativity.GENERALIZED
+            elif self.date > o_date:
+                return TimeRelativity.AFTER
+            else:
+                raise IllegalStateError('Date comparison exausted but not found')
+        elif isinstance(o, Date):
+            if self.date < o.date:
+                return TimeRelativity.BEFORE
+            elif self.date == o.date:
+                return TimeRelativity.PARALLEL
+            elif self.date > o.date:
+                return TimeRelativity.AFTER
+            else:
+                raise IllegalStateError('Date comparison exausted but not found')
+        return NotImplemented
 
 
 class Event(RelTimeMarker):

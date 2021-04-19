@@ -30,6 +30,8 @@ from model import (
         Date,
         Event,
         RelTimeMarker,
+        RelTimeSpecImplicit,
+        TimeRelativity,
         )
 
 
@@ -123,6 +125,7 @@ class OrderedMarkers:
     def __init__(self, collection: Collection):
         g = nx.DiGraph()
 
+        # 並查集建立
         def current_root(node):
             if id_merging[node] == node: return node
             return current_root(id_merging[node])
@@ -147,6 +150,29 @@ class OrderedMarkers:
         id_merged = {}
         for marker in coll:
             id_merged[marker.id] = current_root(marker.id)
+        # 並查集建立完畢
+
+        implicits = []
+        for marker in coll:
+            if isinstance(marker, RelTimeSpecImplicit):
+                implicits.append(marker)
+        implicit_befores = {}
+        implicit_afters = {}
+        for marker in implicits:
+            befores = []
+            afters = []
+            for m2 in implicits:
+                if marker is not m2:
+                    rel = marker.compare(m2)
+                    if rel == TimeRelativity.BEFORE:
+                        befores.append(m2.id)
+                        g.add_edge(marker.id, m2.id)
+                    elif rel == TimeRelativity.AFTER:
+                        afters.append(m2.id)
+                        g.add_edge(m2.id, marker.id)
+            implicit_befores[marker.id] = befores
+            implicit_afters[marker.id] = afters
+
 
         for marker in coll:
             if isinstance(marker, Event):
