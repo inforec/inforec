@@ -15,6 +15,8 @@ import typing
 
 import utils
 
+from exception import IllegalStateError
+from model import Event
 from storage import InfoRecDB
 
 
@@ -23,10 +25,11 @@ def dump_events(db: 'InfoRecDB'):
         def handle_rel(rel):
             if rel is None:
                 return rel
-            return [db.get_event(eid).title for eid in rel]
+            return [str(db.get_item(iid)) for iid in rel]
         return handle_rel(timespec.befores), handle_rel(timespec.afters), handle_rel(timespec.sames)
     event_table = []
-    for eid in db.list():
-        event = db.get_event(eid)
-        event_table.append([str(eid), event.title, *dump_timespec(db, event.timespec)])
+    for iid in db.list():
+        item = db.get_item(iid)
+        if isinstance(item, Event):
+            event_table.append([str(iid), item.title, *dump_timespec(db, item.timespec)])
     return pd.DataFrame(event_table, columns=["ID", "Title", "Before", "After", "Same"])

@@ -10,6 +10,7 @@
 This file contains the data model.
 '''
 
+import dateparser
 import datetime
 
 from enum import Enum
@@ -77,6 +78,9 @@ class AbsoluteDateTime(RelTimeMarker, RelTimeSpecImplicit):
         super().__init__(id)
         self.abstime = time
 
+    def __str__(self):
+        return str(self.abstime)
+
     def compare(self, o: RelTimeSpecImplicit) -> TimeRelativity:
         if isinstance(o, AbsoluteDateTime):
             if self.abstime < o.abstime:
@@ -105,6 +109,9 @@ class Date(RelTimeMarker, RelTimeSpecImplicit):
     def __init__(self, id, date: datetime.date):
         super().__init__(id)
         self.date = date
+
+    def __str__(self):
+        return str(self.date)
 
     def compare(self, o: RelTimeSpecImplicit) -> TimeRelativity:
         if isinstance(o, AbsoluteDateTime):
@@ -136,6 +143,64 @@ class Event(RelTimeMarker):
         self.title = title
         self.desc = desc
         self.timespec = timespec
+
+    def __str__(self):
+        return self.title
+
+
+class AbsoluteBuilder:
+    '''
+    Common builder class for AbsoluteDateTime and Date
+    '''
+
+    def __init__(self):
+        self._id = None
+        self._date = None
+        self._time = None
+
+    def id(self, id):
+        self._id = id
+        return self
+
+    def date(self, date):
+        if isinstance(date, datetime.date):
+            self._date = date
+        else:
+            dt = dateparser.parse(date) or datetime.datetime.strptime(date, '%Y%m%d')
+            if not dt:
+                raise ValueError("Unparsed date {}".format(date))
+            self._date = dt.date()
+        return self
+
+    def time(self, time):
+        if isinstance(date, datetime.time):
+            self._time = time
+        else:
+            dt = dateparser.parse(date)
+            if not dt:
+                raise ValueError("Unparsed time {}".format(time))
+            self._time = dt.time()
+        return self
+
+    def datetime(self, date_time):
+        if isinstance(date_time, datetime.datetime):
+            self._date = date_time.date()
+            self._time = date_time.time()
+        else:
+            dt = dateparser.parse(date_time)
+            if not dt:
+                raise ValueError("Unparsed datetime {}".format(date_time))
+            self._date = dt.date()
+            self._time = dt.time()
+        return self
+
+    def build(self):
+        mid = self._id if self._id else genid()
+        if self._time is None:
+            return Date(mid, self._date)
+        else:
+            dt = datetime.datetime.combine(self._date, self._time)
+            return AbsoluteDateTime(mid, dt)
 
 
 class EventBuilder:
