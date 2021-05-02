@@ -11,6 +11,7 @@ This module contains all that is related to storage and backend data structures.
 It may be split in the future.
 '''
 
+import itertools
 import json
 import networkx as nx
 import pathlib
@@ -57,33 +58,39 @@ M_T_SER = {
 
 class Collection:
 
-    def __init__(self, initial_rel_markers: List[RelTimeMarker]=[]):
+    def __init__(self, initial_rel_markers: Iterable[RelTimeMarker]=[]):
         self.collection = {}
         self._dangling_refs = {}
-        for rel in initial_rel_markers:
-            self.add_item(rel)
+        self.add_item(*initial_rel_markers)
 
-    def add_item(self, item: RelTimeMarker):
-        iid = item.id
-        if iid in self.collection:
-            raise IllegalStateError('The item you are trying to add has duplicated id with an existing entry.')
-        self.collection[iid] = item
+    def _do_dangling_ref(self, timespec, item_id):
+        for tid in itertools.chain(timespec.befores or [], timespec.sames or [], timespec.afters or []):
+            if tid in self.collection:
+                continue
+            if tid not in self._dangling_refs: self._dangling_refs[tid] = set()
+            self._dangling_refs[tid].add(item_id)
+
+    def add_item(self, *item: Union[RelTimeMarker, Iterable[RelTimeMarker]]) -> None:
+        for s_item in item:
+            iid = s_item.id
+            if iid in self.collection:
+                raise IllegalStateError('The item you are trying to add has duplicated id with an existing entry.')
+            self.collection[iid] = s_item
+        for s_item in item:
+            iid = s_item.id
+            if isinstance(s_item, Event):
+                if iid in self._dangling_refs:
+                    del self._dangling_refs[iid]
+                self._do_dangling_ref(s_item.timespec, iid)
+
+    def update_item(self, item_id: Union[UUID, str], new_item: RelTimeMarker) -> None:
+        old_item = self.get_item(item_id)
+        assert isinstance(new_item, type(old_item))
+        self.collection[old_item.id] = new_item
+        for iids in self._dangling_refs.values():
+            iids.discard(item_id)
         if isinstance(item, Event):
-            if iid in self._dangling_refs:
-                del self._dangling_refs[iid]
-            if item.timespec:
-                if item.timespec.befores is not None:
-                    for tid in item.timespec.befores:
-                        if tid not in self._dangling_refs: self._dangling_refs[tid] = []
-                        self._dangling_refs[tid].append(iid)
-                if item.timespec.afters is not None:
-                    for tid in item.timespec.afters:
-                        if tid not in self._dangling_refs: self._dangling_refs[tid] = []
-                        self._dangling_refs[tid].append(iid)
-                if item.timespec.sames is not None:
-                    for tid in item.timespec.sames:
-                        if tid not in self._dangling_refs: self._dangling_refs[tid] = []
-                        self._dangling_refs[tid].append(iid)
+            self._do_dangling_ref(new_item.timespec, item_id)
 
     def is_self_contained(self) -> bool:
         '''
@@ -195,7 +202,7 @@ class OrderedMarkers:
 
 
 
-@delegate('collection', 'add_item', 'is_self_contained', 'get_event', 'get_item', 'list', 'has_no_conflict', 'conflicts')
+@delegate('collection', 'add_item', 'update_item', 'is_self_contained', 'get_event', 'get_item', 'list', 'has_no_conflict', 'conflicts')
 class InfoRecDB:
 
     @staticmethod
