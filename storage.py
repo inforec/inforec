@@ -238,7 +238,10 @@ class InfoRecDB:
         db.write()
 
     @classmethod
-    def open(cls, base_dir):
+    def open(cls, base_dir, auto_init=False):
+        if auto_init:
+            if cls.not_exists_or_empty_dir(base_dir):
+                cls.init(base_dir)
         collection = cls.read_db(base_dir)
         return cls(base_dir, collection)
 
