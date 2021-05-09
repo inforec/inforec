@@ -21,3 +21,6 @@ def tabularize_events(db: 'InfoRecDB'):
         event = db.get_event(eid)
         event_table.append([str(eid), event.title])
     return event_table
+
+def comma_separated_list(lst_s):
+    return [item.strip() for item in lst_s.split(',')]
