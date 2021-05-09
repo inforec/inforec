@@ -213,6 +213,8 @@ class EventBuilder:
         self._same = None
 
     def id(self, id):
+        if not isinstance(id, UUID):
+            id = UUID(id)
         self._id = id
         return self
 
