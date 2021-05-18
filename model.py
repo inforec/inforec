@@ -223,6 +223,8 @@ class EventBuilder:
         return self
 
     def _add_rel(self, spec_target, other):
+        if other is None:
+            return
         if isinstance(other, Event):
             spec_target.append(other.id)
         elif isinstance(other, UUID):

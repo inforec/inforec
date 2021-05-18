@@ -99,7 +99,7 @@ def serialize_absolutedatetime(obj: AbsoluteDateTime) -> dict:
 
 def deserialize_date(dic) -> Date:
     id = UUID(dic[K_ID])
-    date = datetime.strptime(dic[K_DATE], DATE_REPR)
+    time = datetime.datetime.strptime(dic[K_DATE], DATE_REPR)
     return Date(id, time)
 
 def serialize_date(obj: Date) -> dict:
