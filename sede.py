@@ -36,6 +36,7 @@ K_DATE = 'date'
 
 DATETIME_REPR = r'%Y-%m-%dT%H:%M:%S[%Z]'
 DATE_REPR = r'%Y-%m-%d[%Z]'
+TEST_STR = 'test pull request'
 
 
 def serialise_reltimespec(obj) -> dict:
