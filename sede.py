@@ -34,8 +34,8 @@ K_DATETIME = 'datetime'
 K_DATE = 'date'
 
 
-DATETIME_REPR = r'%Y-%m-%dT%H:%M:%S[%z]'
-DATE_REPR = r'%Y-%m-%d[%z]'
+DATETIME_REPR = r'%Y-%m-%dT%H:%M:%S[%Z]'
+DATE_REPR = r'%Y-%m-%d[%Z]'
 
 
 def serialise_reltimespec(obj) -> dict:
