@@ -105,10 +105,10 @@ class Collection:
 
     def get_event(self, id: Union[UUID, str]) -> Event:
         item = self.get_item(id)
-        if isinstance(item, Event):
-            return item
-        # raise RuntimeError("The requested item {} is not an Event, but a {}".format(id, type(item)))
-
+        if not isinstance(item, Event):
+            raise RuntimeError("The requested item {} is not an Event, but a {}".format(id, type(item)))
+        return item
+        
     def list(self) -> Iterable[UUID]:
         return self.collection.keys()
 

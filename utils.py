@@ -19,9 +19,7 @@ def tabularize_events(db: 'InfoRecDB'):
     event_table = []
     for eid in db.list():
         event = db.get_event(eid)
-        if event is not None:
-            event_table.append([str(eid), event.title])
-
+        event_table.append([str(eid), event.title])
     return event_table
 
 def comma_separated_list(lst_s):
