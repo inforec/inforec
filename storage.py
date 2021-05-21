@@ -108,7 +108,7 @@ class Collection:
         if not isinstance(item, Event):
             raise RuntimeError("The requested item {} is not an Event, but a {}".format(id, type(item)))
         return item
-
+        
     def list(self) -> Iterable[UUID]:
         return self.collection.keys()
 
@@ -229,7 +229,8 @@ class InfoRecDB:
     @classmethod
     def init(cls, base_dir):
         if not cls.not_exists_or_empty_dir(base_dir):
-            error(f'Path `{base_dir}` is not an empty directory or is a file')
+            raise RuntimeError(f'Path `{base_dir}` is not an empty directory or is a file')
+
         path = pathlib.Path(base_dir)
         if not path.exists():
             path.mkdir()

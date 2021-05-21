@@ -34,8 +34,8 @@ K_DATETIME = 'datetime'
 K_DATE = 'date'
 
 
-DATETIME_REPR = r'%Y-%m-%dT%H:%M:%S[%z]'
-DATE_REPR = r'%Y-%m-%d[%z]'
+DATETIME_REPR = r'%Y-%m-%dT%H:%M:%S[%Z]'
+DATE_REPR = r'%Y-%m-%d[%Z]'
 
 
 def serialise_reltimespec(obj) -> dict:
@@ -99,8 +99,8 @@ def serialize_absolutedatetime(obj: AbsoluteDateTime) -> dict:
 
 def deserialize_date(dic) -> Date:
     id = UUID(dic[K_ID])
-    date = datetime.strptime(dic[K_DATE], DATE_REPR)
-    return Date(id, time)
+    date = datetime.datetime.strptime(dic[K_DATE], DATE_REPR)
+    return Date(id, date)
 
 def serialize_date(obj: Date) -> dict:
     ret = {
