@@ -15,7 +15,7 @@ import argparse
 import sys
 
 from model import EventBuilder
-from storage import InfoRecDB
+from storage import App, InfoRecDB
 from utils import tabularize_events
 
 
@@ -52,8 +52,8 @@ def main():
     if args.action == 'init':
         InfoRecDB.init(base_dir)
     elif args.action == 'list':
-        db = InfoRecDB.open(base_dir)
-        for einfo in tabularize_events(db):
+        app = App(base_dir)
+        for einfo in tabularize_events(app.collection()):
             print(f"{einfo[0]} {einfo[1]}")
     elif args.action == 'add':
         title = args.title
@@ -61,11 +61,12 @@ def main():
         before = args.before
         after = args.after
         same = args.same
-        db = InfoRecDB.open(base_dir)
+        app = App(base_dir)
+        collection = app.collection()
         event = EventBuilder(title).desc(desc).before(before).after(after).same(same).build()
-        db.add_item(event)
-        assert db.is_self_contained()
-        db.write()
+        collection.add_item(event)
+        assert collection.is_self_contained()
+        app.flush()
     else:
         parser.print_help()
 

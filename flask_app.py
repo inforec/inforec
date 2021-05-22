@@ -16,7 +16,7 @@ from flask import Flask, redirect, request
 from flask_restful import Api, Resource, fields, marshal_with, reqparse
 import uuid
 
-from storage import InfoRecDB
+from storage import App
 
 import model
 import sede
@@ -25,7 +25,7 @@ import utils
 DB_DIRECTORY = 'data'
 API_BASE_URL='/api'
 
-db = InfoRecDB.open(DB_DIRECTORY, auto_init=True)
+iapp = App(DB_DIRECTORY)
 
 app = Flask(__name__)
 
@@ -52,49 +52,49 @@ def pre_handle_event_post_request(id):
     return event
 
 class EventList(Resource):
-    def __init__(self, db):
-        self.db = db
+    def __init__(self, app):
+        self.app = app
 
     def get(self):
-        return [str(item) for item in self.db.list()]
+        return [str(item) for item in self.app.collection().list()]
 
     def post(self):
         id = uuid.uuid4()
         # return redirect(api.url_for(Event, id=str(id)), code=307)
         event = pre_handle_event_post_request(str(id))
-        self.db.add_item(event)
+        self.app.collection().add_item(event)
         return str(id)
 
 class Event(Resource):
-    def __init__(self, db):
-        self.db = db
+    def __init__(self, app):
+        self.app = app
 
     def get(self, id):
-        event = db.get_event(id)
+        event = self.app.collection().get_event(id)
         return sede.serialise_event(event)
 
     def post(self, id):
         event = pre_handle_event_post_request(id)
-        self.db.update_item(id, event)
+        self.app.collection().update_item(id, event)
         return id
 
 class Collection(Resource):
-    def __init__(self, db):
-        self.db = db
+    def __init__(self, app):
+        self.app = app
 
     def get(self):
         return {
-                'is_self_contained': self.db.is_self_contained(),
-                'has_no_conflict': self.db.has_no_conflict(),
-                'conflicts': self.db.conflicts(),
+                'is_self_contained': self.app.collection().is_self_contained(),
+                'has_no_conflict': self.app.collection().has_no_conflict(),
+                'conflicts': self.app.collection().conflicts(),
                 }
 
 api.add_resource(EventList, f'{API_BASE_URL}/event',
-        resource_class_args=[db])
+        resource_class_args=[iapp])
 api.add_resource(Event, f'{API_BASE_URL}/event/<string:id>',
-        resource_class_args=[db])
+        resource_class_args=[iapp])
 api.add_resource(Collection, f'{API_BASE_URL}/collection',
-        resource_class_args=[db])
+        resource_class_args=[iapp])
 
 ### WebAPI end
 
