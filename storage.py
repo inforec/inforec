@@ -17,7 +17,7 @@ import networkx as nx
 import pathlib
 import uuid
 
-from typing import Iterable, List, Mapping, Optional, Union
+from typing import Dict, Iterable, List, Mapping, Optional, Set, Union
 from uuid import UUID
 
 import sede
@@ -59,8 +59,8 @@ M_T_SER = {
 class Collection:
 
     def __init__(self, initial_rel_markers: Iterable[RelTimeMarker]=[]):
-        self.collection = {}
-        self._dangling_refs = {}
+        self.collection = {}  # type: Dict[UUID, RelTimeMarker]
+        self._dangling_refs = {}  # type: Dict[UUID, Set[UUID]]
         self.add_item(*initial_rel_markers)
 
     def _do_dangling_ref(self, timespec, item_id):
@@ -70,7 +70,7 @@ class Collection:
             if tid not in self._dangling_refs: self._dangling_refs[tid] = set()
             self._dangling_refs[tid].add(item_id)
 
-    def add_item(self, *item: Union[RelTimeMarker, Iterable[RelTimeMarker]]) -> None:
+    def add_item(self, *item: RelTimeMarker) -> None:
         for s_item in item:
             iid = s_item.id
             if iid in self.collection:
@@ -84,6 +84,8 @@ class Collection:
                 self._do_dangling_ref(s_item.timespec, iid)
 
     def update_item(self, item_id: Union[UUID, str], new_item: RelTimeMarker) -> None:
+        if not isinstance(item_id, UUID):
+            item_id = UUID(item_id)
         old_item = self.get_item(item_id)
         assert isinstance(new_item, type(old_item))
         self.collection[old_item.id] = new_item
@@ -199,7 +201,6 @@ class OrderedMarkers:
 
     def cycles(self):
         return list(nx.simple_cycles(self.g))
-
 
 
 @delegate('collection', 'add_item', 'update_item', 'is_self_contained', 'get_event', 'get_item', 'list', 'has_no_conflict', 'conflicts')

@@ -63,13 +63,19 @@ class RelTimeSpec:
         self.sames = sames
 
     def before(self, other: RelTimeMarker):
-        self.befores.append(other)
+        if self.befores is None:
+            self.befores = []
+        self.befores.append(other.id)
 
     def after(self, other: RelTimeMarker):
-        self.afters.append(other)
+        if self.afters is None:
+            self.afters = []
+        self.afters.append(other.id)
 
     def same(self, other: RelTimeMarker):
-        self.sames.append(other)
+        if self.sames is None:
+            self.sames = []
+        self.sames.append(other.id)
 
 
 class AbsoluteDateTime(RelTimeMarker, RelTimeSpecImplicit):
@@ -251,7 +257,6 @@ class EventBuilder:
         return self
 
     def build(self) -> Event:
-        before = []
         timespec = RelTimeSpec(self._before, self._after, self._same)
         eid = self._id if self._id else genid()
         return Event(id=eid, title=self._title, desc=self._desc, timespec=timespec)

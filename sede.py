@@ -86,7 +86,7 @@ def serialise_event(obj) -> dict:
 
 def deserialize_absolutedatetime(dic) -> AbsoluteDateTime:
     id = UUID(dic[K_ID])
-    time = datetime.strptime(dic[K_DATETIME], DATETIME_REPR)
+    time = datetime.datetime.strptime(dic[K_DATETIME], DATETIME_REPR)
     return AbsoluteDateTime(id, time)
 
 def serialize_absolutedatetime(obj: AbsoluteDateTime) -> dict:
