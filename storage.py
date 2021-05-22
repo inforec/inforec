@@ -203,7 +203,6 @@ class OrderedMarkers:
         return list(nx.simple_cycles(self.g))
 
 
-@delegate('collection', 'add_item', 'update_item', 'is_self_contained', 'get_event', 'get_item', 'list', 'has_no_conflict', 'conflicts')
 class InfoRecDB:
 
     @staticmethod
@@ -266,3 +265,14 @@ class InfoRecDB:
         dic[K_COLLECTION] = coll
         with open(path, 'w') as f:
             json.dump(dic, f)
+
+
+class App:
+    def __init__(self, db_dir, auto_init=True):
+        self.db = InfoRecDB.open(db_dir, auto_init)
+
+    def collection(self):
+        return self.db.collection
+
+    def flush(self):
+        self.db.write()
