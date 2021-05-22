@@ -76,7 +76,7 @@ class AbsoluteDateTime(RelTimeMarker, RelTimeSpecImplicit):
 
     def __init__(self, id, abstime: datetime.datetime):
         super().__init__(id)
-        self.abstime = time
+        self.abstime = abstime
 
     def __str__(self):
         return str(self.abstime)
@@ -173,10 +173,10 @@ class AbsoluteBuilder:
         return self
 
     def time(self, time):
-        if isinstance(date, datetime.time):
+        if isinstance(time, datetime.time):
             self._time = time
         else:
-            dt = dateparser.parse(date)
+            dt = dateparser.parse(time)
             if not dt:
                 raise ValueError("Unparsed time {}".format(time))
             self._time = dt.time()

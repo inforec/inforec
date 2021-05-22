@@ -89,7 +89,7 @@ class Collection:
         self.collection[old_item.id] = new_item
         for iids in self._dangling_refs.values():
             iids.discard(item_id)
-        if isinstance(item, Event):
+        if isinstance(new_item, Event):
             self._do_dangling_ref(new_item.timespec, item_id)
 
     def is_self_contained(self) -> bool:
